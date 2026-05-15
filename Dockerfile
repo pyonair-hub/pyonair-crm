@@ -6,29 +6,21 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath gd intl mbstring xml pcntl
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
-COPY composer.json composer.lock ./
-COPY packages packages
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
 COPY . .
-RUN composer dump-autoload --optimize
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Stage 2: Frontend build
 FROM node:22-alpine AS frontend-stage
 WORKDIR /app
-COPY package.json ./
-COPY vite.config.js ./
-COPY resources ./resources
-COPY packages ./packages
-COPY public ./public
+COPY . .
+# Create a minimal .env so vite loadEnv doesn't fail
+RUN echo "APP_NAME='Pyonair CRM'" > .env
 RUN npm install
-# Build main assets
-RUN npx vite build 2>/dev/null || true
-# Build Admin package assets
-RUN cd packages/Webkul/Admin && npx vite build 2>/dev/null || true
-# Build Installer package assets
-RUN cd packages/Webkul/Installer && npx vite build 2>/dev/null || true
-# Build WebForm package assets
-RUN cd packages/Webkul/WebForm && npx vite build 2>/dev/null || true
+# Build main assets, admin, installer, webform
+RUN npx vite build || true
+RUN cd packages/Webkul/Admin && npx vite build || true
+RUN cd packages/Webkul/Installer && npx vite build || true
+RUN cd packages/Webkul/WebForm && npx vite build || true
 
 # Stage 3: Production image
 FROM php:8.2-apache
@@ -58,15 +50,15 @@ WORKDIR /var/www/html
 # Copy application from composer stage
 COPY --from=composer-stage /app .
 
-# Copy built frontend assets
-COPY --from=frontend-stage /app/public/build ./public/build 2>/dev/null || true
-COPY --from=frontend-stage /app/public/admin ./public/admin 2>/dev/null || true
+# Copy built frontend assets (use shell to handle missing dirs)
+RUN rm -rf public/build public/admin/build
+COPY --from=frontend-stage /app/public/ ./public/
 
 # Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache
 RUN chmod -R 775 storage bootstrap/cache
 
-# Create entrypoint script
+# Copy entrypoint
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
