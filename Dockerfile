@@ -1,11 +1,12 @@
 # Stage 1: Composer dependencies
 FROM php:8.2-cli-alpine AS composer-stage
 RUN apk add --no-cache git zip unzip curl libpng-dev libjpeg-turbo-dev freetype-dev \
-    icu-dev oniguruma-dev libxml2-dev postgresql-dev
+    icu-dev oniguruma-dev libxml2-dev postgresql-dev libzip-dev
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath gd intl mbstring xml pcntl
+RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath gd intl mbstring xml pcntl zip calendar
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 WORKDIR /app
+ENV COMPOSER_ALLOW_SUPERUSER=1
 COPY . .
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
