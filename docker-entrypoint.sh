@@ -41,25 +41,27 @@ fi
 # Create storage symlink
 php artisan storage:link --force 2>/dev/null || true
 
-# Run migrations (with retry for DB startup delay)
-max_tries=15
-count=0
-until php artisan migrate --force 2>/dev/null; do
-    count=$((count + 1))
-    if [ $count -ge $max_tries ]; then
-        echo "WARNING: Could not run migrations after $max_tries attempts"
-        break
-    fi
-    echo "Waiting for database... attempt $count/$max_tries"
-    sleep 5
-done
+# Run migrations and seeding in background so Apache can start for health checks
+(
+    max_tries=15
+    count=0
+    until php artisan migrate --force 2>/dev/null; do
+        count=$((count + 1))
+        if [ $count -ge $max_tries ]; then
+            echo "WARNING: Could not run migrations after $max_tries attempts"
+            break
+        fi
+        echo "Waiting for database... attempt $count/$max_tries"
+        sleep 3
+    done
 
-# Seed if first run
-php artisan db:seed --force 2>/dev/null || true
+    # Seed if first run
+    php artisan db:seed --force 2>/dev/null || true
 
-# Cache config and routes for production
-php artisan config:cache 2>/dev/null || true
-php artisan route:cache 2>/dev/null || true
-php artisan view:cache 2>/dev/null || true
+    # Cache config and routes
+    php artisan config:cache 2>/dev/null || true
+    php artisan route:cache 2>/dev/null || true
+    php artisan view:cache 2>/dev/null || true
+) &
 
 exec "$@"
