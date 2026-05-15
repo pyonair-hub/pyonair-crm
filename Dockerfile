@@ -1,5 +1,5 @@
 # Stage 1: Composer dependencies
-FROM php:8.2-cli-alpine AS composer-stage
+FROM php:8.3-cli-alpine AS composer-stage
 RUN apk add --no-cache git zip unzip curl libpng-dev libjpeg-turbo-dev freetype-dev \
     icu-dev oniguruma-dev libxml2-dev postgresql-dev libzip-dev
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
@@ -24,14 +24,14 @@ RUN cd packages/Webkul/Installer && npx vite build || true
 RUN cd packages/Webkul/WebForm && npx vite build || true
 
 # Stage 3: Production image
-FROM php:8.2-apache
+FROM php:8.3-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev libjpeg-dev libfreetype6-dev libicu-dev libonig-dev \
     libxml2-dev libpq-dev libzip-dev unzip curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath gd intl mbstring xml pcntl zip \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql bcmath gd intl mbstring xml pcntl zip calendar \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Apache config
